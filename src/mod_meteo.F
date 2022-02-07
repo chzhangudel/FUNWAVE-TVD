@@ -66,6 +66,7 @@ MODULE METEO_MODULE
   SAVE
 
        LOGICAL :: MeteoGausian = .FALSE.
+       LOGICAL :: AxisymmetricGaussian = .FALSE.
        LOGICAL :: SlideModel = .FALSE.
        LOGICAL :: WindConstantField = .FALSE.
        LOGICAL :: WindForce = .FALSE.
@@ -89,6 +90,11 @@ MODULE METEO_MODULE
 !   Gausian
     REAL(SP) :: DP_storm2,SigmaX2, SigmaY2, Theta2, &
                 DP_storm1,SigmaX1, SigmaY1, Theta1
+				
+!   Axisymmetric Gaussian
+    REAL(SP) :: Radius_storm1,PT_storm1,LC_storm1,LT_storm1,& !PC_storm1 is duplicated
+				TP_storm1,PSp_storm1,ExpG_storm1,Decay_storm1,CDis_storm1, &
+				Lp_storm,RLp_storm,TLp_storm,Kap_storm,RA_storm
 
     REAL(SP),DIMENSION(:,:),ALLOCATABLE :: StormPressureTotal, &
                                            StormPressureX,StormPressureY
@@ -188,6 +194,21 @@ SUBROUTINE METEO_INITIAL
          WRITE(3,'(A40)')'not use MeteoGausian'
 # endif
        ENDIF
+	   
+  ! axisymmetric gaussian 2D
+      CALL READ_LOGICAL(AxisymmetricGaussian,FILE_NAME,'AxisymmetricGaussian',ierr)
+      IF(ierr==1)THEN
+        AxisymmetricGaussian = .FALSE.
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A40)')'not use AxisymmetricGaussian'
+         WRITE(3,'(A40)')'not use AxisymmetricGaussian'
+      endif
+# else
+         WRITE(*,'(A40)')'not use AxisymmetricGaussian'
+         WRITE(3,'(A40)')'not use AxisymmetricGaussian'
+# endif
+       ENDIF
 
   ! slide model
       CALL READ_LOGICAL(SlideModel,FILE_NAME,'SlideModel',ierr)
@@ -206,6 +227,11 @@ SUBROUTINE METEO_INITIAL
 
 ! ------------------ meteo gausian
   IF(MeteoGausian)THEN
+         AirPressure = .TRUE.
+  ENDIF
+  
+! ------------------ axisymmetric gaussian
+  IF(AxisymmetricGaussian)THEN
          AirPressure = .TRUE.
   ENDIF
 
@@ -333,7 +359,12 @@ SUBROUTINE METEO_INITIAL
      CALL MeteoGausian_Setup
 
   ENDIF ! end meteogausian
+  
+  IF(AxisymmetricGaussian) THEN
 
+     CALL AxisymmetricGaussian_Setup
+
+  ENDIF ! end AxisymmetricGaussian
 
   IF (WindConstantField) THEN
 
@@ -366,6 +397,12 @@ SUBROUTINE METEO_FORCING
     CALL MeteoGausian_Forcing
 
   ENDIF ! end meteogausian
+  
+  IF (AxisymmetricGaussian) THEN
+
+    CALL AxisymmetricGaussian_Forcing
+
+  ENDIF ! end AxisymmetricGaussian
 
   IF(WindConstantField)THEN
 
@@ -409,6 +446,8 @@ SUBROUTINE Holland_Model_Setup
       
 ! Xco, and Yco
 
+# if defined (CARTESIAN)
+! Cartesian
 # if defined (PARALLEL)
 ![---ykchoi Jan/23/2018
 !      Xco(Ibeg) = npx*(Mloc-2*Nghost)*DX
@@ -439,6 +478,7 @@ SUBROUTINE Holland_Model_Setup
      DO J = Jbeg-1,Jbeg-Nghost,-1
        Yco(J) = Yco(J+1)-DY
      ENDDO
+# endif
 
     TMP_NAME = TRIM(STORM_FILE)
 
@@ -656,12 +696,14 @@ SUBROUTINE Holland_Model_Forcing
    IF(AirPressure)THEN
     DO J=Jbeg,Jend
     DO I=Ibeg,Iend
+# if defined (CARTESIAN)
        StormPressureX(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
                /DX
        StormPressureY(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
                /DY
+# endif
     ENDDO
     ENDDO
    ENDIF
@@ -760,6 +802,8 @@ SUBROUTINE Slide_Model_Setup
       
 ! Xco, and Yco
 
+# if defined (CARTESIAN)
+! Cartesian
 # if defined (PARALLEL)
 ![---ykchoi Jan/23/2018
 !     Xco(Ibeg) = npx*(Mloc-2*Nghost)*DX
@@ -789,6 +833,7 @@ SUBROUTINE Slide_Model_Setup
      DO J = Jbeg-1,Jbeg-Nghost,-1
        Yco(J) = Yco(J+1)-DY
      ENDDO
+# endif
 
     TMP_NAME = TRIM(SLIDE_FILE)
 
@@ -934,12 +979,14 @@ SUBROUTINE Slide_Model_Forcing
 
     DO J=Jbeg,Jend
     DO I=Ibeg,Iend
+# if defined (CARTESIAN)
        StormPressureX(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
                /DX
        StormPressureY(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
                /DY
+# endif
     ENDDO
     ENDDO
 
@@ -975,6 +1022,8 @@ SUBROUTINE MeteoGausian_Setup
       
 ! Xco, and Yco
 
+# if defined (CARTESIAN)
+! Cartesian
 # if defined (PARALLEL)
 ![---ykchoi Jan/23/2018
 !     Xco(Ibeg) = npx*(Mloc-2*Nghost)*DX
@@ -1004,6 +1053,7 @@ SUBROUTINE MeteoGausian_Setup
      DO J = Jbeg-1,Jbeg-Nghost,-1
        Yco(J) = Yco(J+1)-DY
      ENDDO
+# endif
 
     TMP_NAME = TRIM(STORM_FILE)
 
@@ -1181,17 +1231,264 @@ SUBROUTINE MeteoGausian_Forcing
 
     DO J=Jbeg,Jend
     DO I=Ibeg,Iend
+# if defined (CARTESIAN)
        StormPressureX(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
                /DX
        StormPressureY(I,J) = -Grav*H(I,J)*  &
                (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
                /DY
+# endif
     ENDDO
     ENDDO
 
 END SUBROUTINE MeteoGausian_Forcing
 
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE AxisymmetricGaussian_Setup
+  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
+                    Lon_West,Lat_South,Dphi,Dtheta
+# if defined (PARALLEL)
+  USE GLOBAL,ONLY : iista,jjsta   !ykchoi Jan/23/2018
+# endif
+  USE INPUT_READ
+  IMPLICIT NONE
+  CHARACTER(LEN=80)::FILE_NAME=' '
+  CHARACTER(LEN=80)::EVENT_FILE =' '
+  CHARACTER(LEN=80)::TMP_NAME=' '
+  INTEGER :: Ifile,ierr
+  CHARACTER(LEN=80):: EventName
+
+! read storm from input.txt
+      FILE_NAME=INPUT_FILE_NAME
+
+! storm file
+      CALL READ_STRING(EVENT_FILE,FILE_NAME,'AXISYMMETRIC_GAUSSIAN_FILE',ierr)
+# if defined (PARALLEL)
+      if (myid.eq.0) WRITE(3,'(A15,A50)')'EVENT_FILE:', EVENT_FILE
+# else
+      WRITE(3,'(A15,A50)')'EVENT_FILE:', EVENT_FILE
+# endif
+
+    ALLOCATE (Xco(Mloc),Yco(Nloc))
+      
+! Xco, and Yco
+
+# if defined (CARTESIAN)
+! Cartesian
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*DX
+# else
+     Xco(Ibeg) = ZERO
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+DX
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-DX
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*DY
+# else
+     Yco(Jbeg) = ZERO
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+DY
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-DY
+     ENDDO
+	
+# else
+! Spherical
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*Dphi + Lon_West
+# else
+     Xco(Ibeg) = Lon_West
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+Dphi
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-Dphi
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*Dtheta + Lat_South
+# else
+     Yco(Jbeg) = Lat_South
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+Dtheta
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-Dtheta
+     ENDDO
+
+# endif
+
+    TMP_NAME = TRIM(EVENT_FILE)
+
+! check existing
+
+ INQUIRE(FILE=TRIM(TMP_NAME),EXIST=FILE_EXIST)
+  IF(.NOT.FILE_EXIST)THEN
+# if defined (PARALLEL)
+   IF(MYID==0)  &
+   WRITE(*,*) TRIM(TMP_NAME), 'CANNOT BE FOUND. STOP'
+   CALL MPI_FINALIZE (ier)
+   STOP
+# else
+    WRITE(*,*) TRIM(TMP_NAME), 'CANNOT BE FOUND. STOP'
+    STOP
+# endif
+  ENDIF
+
+! open file
+  Ifile=300
+  OPEN(Ifile,FILE=TRIM(TMP_NAME))
+
+! read file
+         READ(Ifile,*)  ! title
+         READ(Ifile,*)  EventName  !  name
+         READ(Ifile,*)  ! t0,t1,x0,y0,R0,Pc0,Pt0
+         READ(Ifile,*)  TimeStorm1,TimeStorm2,Xstorm1,Ystorm1, &
+		                Radius_storm1,PC_storm1,PT_storm1
+         READ(Ifile,*)  ! Lc0,Lt0,Tp,psp,alp,eps,cdis
+         READ(Ifile,*)  LC_storm1,LT_storm1,TP_storm1,PSp_storm1, &
+		                ExpG_storm1,Decay_storm1,CDis_storm1
+! close file
+  CLOSE(Ifile)
+
+# if defined (PARALLEL)
+   IF(MYID==0)THEN
+   WRITE(3,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(3,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(3,*) 'Initial Radius, Crest dP, Trough dP: ', &
+               Radius_storm1,PC_storm1,PT_storm1
+   WRITE(3,*) 'Crest length, Trough length: ', &
+               LC_storm1,LT_storm1
+   WRITE(3,*) 'Pulse period & Speed, Exponent for Growth: ', &
+               TP_storm1,PSp_storm1,ExpG_storm1
+   WRITE(3,*) 'Pulse decay factor, Control distance factor: ', &
+               Decay_storm1,CDis_storm1
+   ENDIF
+# else
+   WRITE(*,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(*,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(*,*) 'Initial Radius, Crest dP, Trough dP: ', &
+               Radius_storm1,PC_storm1,PT_storm1
+   WRITE(*,*) 'Crest length, Trough length: ', &
+               LC_storm1,LT_storm1
+   WRITE(*,*) 'Pulse period & Speed, Exponent for Growth: ', &
+               TP_storm1,PSp_storm1,ExpG_storm1
+   WRITE(*,*) 'Pulse decay factor, Control distance factor: ', &
+               Decay_storm1,CDis_storm1
+   WRITE(3,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(3,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(3,*) 'Initial Radius, Crest dP, Trough dP: ', &
+               Radius_storm1,PC_storm1,PT_storm1
+   WRITE(3,*) 'Crest length, Trough length: ', &
+               LC_storm1,LT_storm1
+   WRITE(3,*) 'Pulse period & Speed, Exponent for Growth: ', &
+               TP_storm1,PSp_storm1,ExpG_storm1
+   WRITE(3,*) 'Pulse decay factor, Control distance factor: ', &
+               Decay_storm1,CDis_storm1
+# endif
+
+    RA_storm = PT_storm1/PC_storm1
+    Kap_storm = 2.0_SP*ACOSH(1.0_SP/SQRT(Decay_storm1))
+	! Pulse wavelength in far-field (km) (prop R/R0 increase)
+    Lp_storm = TP_storm1*PSp_storm1/1000.0_SP
+	! Radius to reach far-field
+	RLp_storm = Radius_storm1*(Lp_storm/((0.5_SP + CDis_storm1) &
+	            *(LC_storm1 + LT_storm1)))**(1.0_SP/ExpG_storm1)
+	! Time to reach far-field period
+	TLp_storm = TimeStorm1 + (RLp_storm - Radius_storm1) &
+	                         *1000.0_SP/PSp_storm1
+
+END SUBROUTINE AxisymmetricGaussian_Setup
+
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+SUBROUTINE AxisymmetricGaussian_Forcing
+  USE GLOBAL,ONLY : Mloc,Nloc,tmp1,tmp2,SMALL,TIME,ZERO
+  USE INPUT_READ
+  IMPLICIT NONE
+  INTEGER :: Ifile,ierr,I,J
+  REAL(SP) :: Radius_storm,Radius_storm0,PC_storm,LC_storm,LT_storm,&
+		      DXi_storm,GC_storm,GT_storm
+  REAL(SP) :: Dist_storm ! distance to source center (rxy:m)
+  REAL(SP) :: Xia ! Relative Gaussian polar coordinates from crest (km)
+
+    StormPressureTotal = ZERO
+
+    IF(TIME>TimeStorm1.AND.TIME<TimeStorm2) THEN
+	  Radius_storm = Radius_storm1 + &
+	                 (TIME-TimeStorm1)*PSp_storm1/1000.0_SP
+	  PC_storm = PC_storm1*Radius_storm1/Radius_storm
+	  IF(TIME<TLp_storm) THEN
+	    LC_storm = LC_storm1*(Radius_storm/Radius_storm1)**ExpG_storm1
+		LT_storm = LT_storm1*(Radius_storm/Radius_storm1)**ExpG_storm1
+	  ELSE
+	    Radius_storm0 = Radius_storm1 + &
+	                 (TLp_storm-TimeStorm1)*PSp_storm1/1000.0_SP
+	    LC_storm = LC_storm1*(Radius_storm0/Radius_storm1)**ExpG_storm1
+		LT_storm = LT_storm1*(Radius_storm0/Radius_storm1)**ExpG_storm1
+	  ENDIF
+	  DXi_storm = CDis_storm1*(LC_storm+LT_storm)
+      DO J=1,Nloc
+      DO I=1,Mloc
+# if defined (CARTESIAN)
+        Dist_storm = SQRT((Xco(I)-Xstorm1)**2 &
+	                     +(Yco(J)-Ystorm1)**2)
+# else
+        Dist_storm = 2.0_SP*R_earth*asin(SQRT(  sin( (Yco(J)-Ystorm1) &
+	                                                 *pi/360.0_SP)**2 &
+	                 + cos(Yco(J)*pi/180.0_SP)*cos(Ystorm1*pi/180.0_SP) &
+		  			  *sin( (Xco(I)-Xstorm1)*pi/360.0_SP )**2 ) )
+# endif
+        Xia = Dist_storm/1000.0_SP - Radius_storm
+		GC_storm = Zero; GT_storm = Zero;
+		IF(Xia<=0.5*LC_storm.AND.Xia>=-(0.5*LT_storm+DXi_storm)) THEN
+          GC_storm = (1.0_SP/cosh( Kap_storm*Xia/LC_storm ))**2
+		  GT_storm = (1.0_SP/cosh( Kap_storm &
+		                        *(Xia+DXi_storm)/LT_storm ))**2
+        ENDIF
+		StormPressureTotal(I,J) = PC_storm*(GC_storm-RA_storm*GT_storm)
+      ENDDO
+      ENDDO
+	
+    ENDIF ! end time > timestorm2
+
+    DO J=Jbeg,Jend
+    DO I=Ibeg,Iend
+# if defined (CARTESIAN)
+       StormPressureX(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
+               /DX
+       StormPressureY(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
+               /DY
+# else
+       StormPressureX(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
+               /DX(i,j)
+       StormPressureY(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
+               /DY(i,j)
+# endif
+    ENDDO
+    ENDDO
+
+END SUBROUTINE AxisymmetricGaussian_Forcing
 
 END MODULE METEO_MODULE
 

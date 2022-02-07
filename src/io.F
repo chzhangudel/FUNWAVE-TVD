@@ -4372,6 +4372,11 @@ SUBROUTINE PREVIEW
         TMP_NAME = TRIM(FDIR)//'Pstorm_'//TRIM(FILE_NAME)
         call PutFile(TMP_NAME,StormPressureTotal)
     ENDIF
+	
+    IF(AxisymmetricGaussian)THEN
+        TMP_NAME = TRIM(FDIR)//'Pstorm_'//TRIM(FILE_NAME)
+        call PutFile(TMP_NAME,StormPressureTotal)
+    ENDIF
 
     IF(SlideModel)THEN
         TMP_NAME = TRIM(FDIR)//'Pstorm_'//TRIM(FILE_NAME)

@@ -12,7 +12,7 @@ PRECISION   = single
 # FLAG_2  = -DZALPHA
 # FLAG_3  = -DMANNING
 #  FLAG_4  = -DVESSEL
-# FLAG_5  = -DMETEO
+ FLAG_5  = -DMETEO
 # FLAG_6  = -DWIND
 # FLAG_7  = -DSEDIMENT
 # FLAG_8  = -DCHECK_MASS_CONSERVATION
@@ -22,7 +22,7 @@ PRECISION   = single
 #----------------uncommon options---------------------
 DEF_FC      = mpif90
 DEF_FC_FLAG = 
-SPHERICAL   = false
+SPHERICAL   = true
 MPI         = openmpi
 DEBUG       = false
 INCS        = $(IOINCS) $(GOTMINCS)
