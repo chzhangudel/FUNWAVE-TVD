@@ -1245,8 +1245,6 @@ SUBROUTINE MeteoGausian_Forcing
 END SUBROUTINE MeteoGausian_Forcing
 
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE AxisymmetricGaussian_Setup
   USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
                     Lon_West,Lat_South,Dphi,Dtheta
@@ -1416,8 +1414,6 @@ SUBROUTINE AxisymmetricGaussian_Setup
 END SUBROUTINE AxisymmetricGaussian_Setup
 
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 SUBROUTINE AxisymmetricGaussian_Forcing
   USE GLOBAL,ONLY : Mloc,Nloc,tmp1,tmp2,SMALL,TIME,ZERO
   USE INPUT_READ
@@ -1462,7 +1458,7 @@ SUBROUTINE AxisymmetricGaussian_Forcing
 		  GT_storm = (1.0_SP/cosh( Kap_storm &
 		                        *(Xia+DXi_storm)/LT_storm ))**2
         ENDIF
-		StormPressureTotal(I,J) = PC_storm*(GC_storm-RA_storm*GT_storm)
+		StormPressureTotal(I,J) = PC_storm*(GC_storm-RA_storm*GT_storm)/100.0_SP
       ENDDO
       ENDDO
 	
