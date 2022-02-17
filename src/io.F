@@ -3769,6 +3769,9 @@ END SUBROUTINE READ_INPUT
 SUBROUTINE STATIONS
      USE GLOBAL
      USE INPUT_READ
+# if defined(METEO)
+     USE METEO_MODULE
+# endif
      IMPLICIT NONE
 
      INTEGER :: iunit
@@ -3776,6 +3779,9 @@ SUBROUTINE STATIONS
      REAL(SP),DIMENSION(:,:,:),ALLOCATABLE :: ZUV_Buffer
      REAL(SP) :: dum1,dum2
      REAL(SP) :: eta_sta,u_sta,v_sta
+# if defined(METEO)
+     REAL(SP) :: pstrom_sta
+# endif
      CHARACTER(LEN=80)::FILE_NAME=' '
      CHARACTER(LEN=80)::TMP_NAME=' '
      CHARACTER(LEN=80)::FDIR=' '
@@ -3789,8 +3795,13 @@ SUBROUTINE STATIONS
        ALLOCATE(ista(NumberStations),&
                 jsta(NumberStations),&
                 nsta(NumberStations))
+# if defined(METEO)
+       ALLOCATE(BufferCount(NumberStations), &
+            ZUV_Buffer(StationOutputBuffer,NumberStations,5))
+# else
        ALLOCATE(BufferCount(NumberStations), &
             ZUV_Buffer(StationOutputBuffer,NumberStations,4))
+# endif
        BufferCount = 0
 ! calculate how many output components
 
@@ -3861,20 +3872,33 @@ SUBROUTINE STATIONS
              u_sta=u(ista(i),jsta(i))
              v_sta=v(ista(i),jsta(i)) 
            ENDIF
-
+# if defined(METEO)
+           pstrom_sta=StormPressureTotal(ista(i),jsta(i))
+# endif
             IF(BufferCount(i)<StationOutputBuffer.AND.TIME<TOTAL_TIME)THEN
               BufferCount(i) = BufferCount(i) +1
               ZUV_BUFFER(BufferCount(i),i,1)=time
               ZUV_BUFFER(BufferCount(i),i,2)=eta_sta
               ZUV_BUFFER(BufferCount(i),i,3)=u_sta
               ZUV_BUFFER(BufferCount(i),i,4)=v_sta
+# if defined(METEO)
+              ZUV_BUFFER(BufferCount(i),i,5)=pstrom_sta
+# endif
             ELSE
               DO j=1,StationOutputBuffer
+# if defined(METEO)
+                write (iunit,'(5E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,5)
+# else
                 write (iunit,'(4E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,4)
+# endif
               ENDDO              
               BufferCount(i) = 0
               ZUV_BUFFER(:,i,1)=TOTAL_TIME
+# if defined(METEO)
+              ZUV_BUFFER(:,i,2:5)=ZERO
+# else
               ZUV_BUFFER(:,i,2:4)=ZERO
+# endif
 
 # if defined (PARALLEL)
       if (myid.eq.0) WRITE(*,*) 'WRITE OUT STATAION ...'
@@ -3915,6 +3939,9 @@ END SUBROUTINE STATIONS
 
 SUBROUTINE STATIONS_SPHERICAL_IJ
      USE GLOBAL
+# if defined(METEO)
+     USE METEO_MODULE
+# endif
      IMPLICIT NONE
 
      INTEGER :: iunit
@@ -3922,6 +3949,9 @@ SUBROUTINE STATIONS_SPHERICAL_IJ
      REAL(SP),DIMENSION(:,:,:),ALLOCATABLE :: ZUV_Buffer
      REAL(SP) :: dum1,dum2
      REAL(SP) :: eta_sta,u_sta,v_sta
+# if defined(METEO)
+     REAL(SP) :: pstrom_sta
+# endif
      CHARACTER(LEN=80)::FILE_NAME=' '
      CHARACTER(LEN=80)::TMP_NAME=' '
      CHARACTER(LEN=80)::FDIR=' '
@@ -3935,8 +3965,13 @@ SUBROUTINE STATIONS_SPHERICAL_IJ
        ALLOCATE(ista(NumberStations),&
                 jsta(NumberStations),&
                 nsta(NumberStations))
+# if defined(METEO)
+       ALLOCATE(BufferCount(NumberStations), &
+            ZUV_Buffer(StationOutputBuffer,NumberStations,5))
+# else
        ALLOCATE(BufferCount(NumberStations), &
             ZUV_Buffer(StationOutputBuffer,NumberStations,4))
+# endif
        BufferCount = 0
   
 ! calculate how many output components
@@ -3993,20 +4028,33 @@ SUBROUTINE STATIONS_SPHERICAL_IJ
             u_sta=u(ista(i),jsta(i))
             v_sta=v(ista(i),jsta(i)) 
           ENDIF
-
+# if defined(METEO)
+           pstrom_sta=StormPressureTotal(ista(i),jsta(i))
+# endif
             IF(BufferCount(i)<StationOutputBuffer.AND.TIME<TOTAL_TIME)THEN
               BufferCount(i) = BufferCount(i) +1
               ZUV_BUFFER(BufferCount(i),i,1)=time
               ZUV_BUFFER(BufferCount(i),i,2)=eta_sta
               ZUV_BUFFER(BufferCount(i),i,3)=u_sta
               ZUV_BUFFER(BufferCount(i),i,4)=v_sta
+# if defined(METEO)
+              ZUV_BUFFER(BufferCount(i),i,5)=pstrom_sta
+# endif
             ELSE
               DO j=1,StationOutputBuffer
+# if defined(METEO)
+                write (iunit,'(5E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,5)
+# else
                 write (iunit,'(4E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,4)
+# endif
               ENDDO              
               BufferCount(i) = 0
               ZUV_BUFFER(:,i,1)=TOTAL_TIME
+# if defined(METEO)
+              ZUV_BUFFER(:,i,2:5)=ZERO
+# else
               ZUV_BUFFER(:,i,2:4)=ZERO
+# endif
 
 # if defined (PARALLEL)
       if (myid.eq.0) WRITE(*,*) 'WRITE OUT STATAION ...'
@@ -4045,6 +4093,9 @@ END SUBROUTINE STATIONS_SPHERICAL_IJ
 !-------------------------------------------------------------------------------------
 SUBROUTINE STATIONS
      USE GLOBAL
+# if defined(METEO)
+     USE METEO_MODULE
+# endif
      IMPLICIT NONE
 
      INTEGER :: iunit
@@ -4052,6 +4103,9 @@ SUBROUTINE STATIONS
      REAL(SP),DIMENSION(:,:,:),ALLOCATABLE :: ZUV_Buffer
      REAL(SP) :: dum1,dum2
      REAL(SP) :: eta_sta,u_sta,v_sta
+# if defined(METEO)
+     REAL(SP) :: pstrom_sta
+# endif
      CHARACTER(LEN=80)::FILE_NAME=' '
      CHARACTER(LEN=80)::TMP_NAME=' '
      CHARACTER(LEN=80)::FDIR=' '
@@ -4066,8 +4120,13 @@ SUBROUTINE STATIONS
        ALLOCATE(ista(NumberStations),&
                 jsta(NumberStations),&
                 nsta(NumberStations))
+# if defined(METEO)
+       ALLOCATE(BufferCount(NumberStations), &
+            ZUV_Buffer(StationOutputBuffer,NumberStations,5))
+# else
        ALLOCATE(BufferCount(NumberStations), &
             ZUV_Buffer(StationOutputBuffer,NumberStations,4))
+# endif
        BufferCount = 0
 
 !       ALLOCATE(envelope(Mloc,Nloc))
@@ -4129,20 +4188,33 @@ SUBROUTINE STATIONS
             u_sta=u(ista(i),jsta(i))
             v_sta=v(ista(i),jsta(i)) 
           ENDIF
-
+# if defined(METEO)
+           pstrom_sta=StormPressureTotal(ista(i),jsta(i))
+# endif
             IF(BufferCount(i)<StationOutputBuffer.AND.TIME<TOTAL_TIME)THEN
               BufferCount(i) = BufferCount(i) +1
               ZUV_BUFFER(BufferCount(i),i,1)=time
               ZUV_BUFFER(BufferCount(i),i,2)=eta_sta
               ZUV_BUFFER(BufferCount(i),i,3)=u_sta
               ZUV_BUFFER(BufferCount(i),i,4)=v_sta
+# if defined(METEO)
+              ZUV_BUFFER(BufferCount(i),i,5)=pstrom_sta
+# endif
             ELSE
               DO j=1,StationOutputBuffer
+# if defined(METEO)
+                write (iunit,'(5E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,5)
+# else
                 write (iunit,'(4E16.5E4)') (ZUV_BUFFER(j,i,k),k=1,4)
+# endif
               ENDDO              
               BufferCount(i) = 0
               ZUV_BUFFER(:,i,1)=TOTAL_TIME
+# if defined(METEO)
+              ZUV_BUFFER(:,i,2:5)=ZERO
+# else
               ZUV_BUFFER(:,i,2:4)=ZERO
+# endif
 
 # if defined (PARALLEL)
       if (myid.eq.0) WRITE(*,*) 'WRITE OUT STATAION ...'
