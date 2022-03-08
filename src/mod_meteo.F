@@ -67,6 +67,7 @@ MODULE METEO_MODULE
 
        LOGICAL :: MeteoGausian = .FALSE.
        LOGICAL :: AxisymmetricGaussian = .FALSE.
+	   LOGICAL :: LPGaussian = .FALSE.
        LOGICAL :: SlideModel = .FALSE.
        LOGICAL :: WindConstantField = .FALSE.
        LOGICAL :: WindForce = .FALSE.
@@ -95,6 +96,9 @@ MODULE METEO_MODULE
     REAL(SP) :: Radius_storm1,PT_storm1,LC_storm1,LT_storm1,& !PC_storm1 is duplicated
 				TP_storm1,PSp_storm1,ExpG_storm1,Decay_storm1,CDis_storm1, &
 				Lp_storm,RLp_storm,TLp_storm,Kap_storm,RA_storm
+				
+!   LP Gaussian
+    REAL(SP) :: PSpC_storm1,PSpT_storm1,PAC_storm1,PAT_storm1
 
     REAL(SP),DIMENSION(:,:),ALLOCATABLE :: StormPressureTotal, &
                                            StormPressureX,StormPressureY
@@ -209,6 +213,21 @@ SUBROUTINE METEO_INITIAL
          WRITE(3,'(A40)')'not use AxisymmetricGaussian'
 # endif
        ENDIF
+	   
+  ! Lynett pressure gaussian 2D
+      CALL READ_LOGICAL(LPGaussian,FILE_NAME,'LPGaussian',ierr)
+      IF(ierr==1)THEN
+        LPGaussian = .FALSE.
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A40)')'not use LPGaussian'
+         WRITE(3,'(A40)')'not use LPGaussian'
+      endif
+# else
+         WRITE(*,'(A40)')'not use LPGaussian'
+         WRITE(3,'(A40)')'not use LPGaussian'
+# endif
+       ENDIF
 
   ! slide model
       CALL READ_LOGICAL(SlideModel,FILE_NAME,'SlideModel',ierr)
@@ -232,6 +251,11 @@ SUBROUTINE METEO_INITIAL
   
 ! ------------------ axisymmetric gaussian
   IF(AxisymmetricGaussian)THEN
+         AirPressure = .TRUE.
+  ENDIF
+  
+! ------------------ Lynett pressure gaussian
+  IF(LPGaussian)THEN
          AirPressure = .TRUE.
   ENDIF
 
@@ -365,6 +389,12 @@ SUBROUTINE METEO_INITIAL
      CALL AxisymmetricGaussian_Setup
 
   ENDIF ! end AxisymmetricGaussian
+  
+  IF(LPGaussian) THEN
+
+     CALL LPGaussian_Setup
+
+  ENDIF ! end LPGaussian
 
   IF (WindConstantField) THEN
 
@@ -403,6 +433,12 @@ SUBROUTINE METEO_FORCING
     CALL AxisymmetricGaussian_Forcing
 
   ENDIF ! end AxisymmetricGaussian
+  
+  IF (LPGaussian) THEN
+
+    CALL LPGaussian_Forcing
+
+  ENDIF ! end LPGaussian
 
   IF(WindConstantField)THEN
 
@@ -1485,6 +1521,230 @@ SUBROUTINE AxisymmetricGaussian_Forcing
     ENDDO
 
 END SUBROUTINE AxisymmetricGaussian_Forcing
+
+
+
+
+
+
+
+
+
+
+
+SUBROUTINE LPGaussian_Setup
+  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
+                    Lon_West,Lat_South,Dphi,Dtheta
+# if defined (PARALLEL)
+  USE GLOBAL,ONLY : iista,jjsta   !ykchoi Jan/23/2018
+# endif
+  USE INPUT_READ
+  IMPLICIT NONE
+  CHARACTER(LEN=80)::FILE_NAME=' '
+  CHARACTER(LEN=80)::EVENT_FILE =' '
+  CHARACTER(LEN=80)::TMP_NAME=' '
+  INTEGER :: Ifile,ierr
+  CHARACTER(LEN=80):: EventName
+
+! read storm from input.txt
+      FILE_NAME=INPUT_FILE_NAME
+
+! storm file
+      CALL READ_STRING(EVENT_FILE,FILE_NAME,'LP_GAUSSIAN_FILE',ierr)
+# if defined (PARALLEL)
+      if (myid.eq.0) WRITE(3,'(A15,A50)')'EVENT_FILE:', EVENT_FILE
+# else
+      WRITE(3,'(A15,A50)')'EVENT_FILE:', EVENT_FILE
+# endif
+
+    ALLOCATE (Xco(Mloc),Yco(Nloc))
+      
+! Xco, and Yco
+
+# if defined (CARTESIAN)
+! Cartesian
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*DX
+# else
+     Xco(Ibeg) = ZERO
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+DX
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-DX
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*DY
+# else
+     Yco(Jbeg) = ZERO
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+DY
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-DY
+     ENDDO
+	
+# else
+! Spherical
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*Dphi + Lon_West
+# else
+     Xco(Ibeg) = Lon_West
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+Dphi
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-Dphi
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*Dtheta + Lat_South
+# else
+     Yco(Jbeg) = Lat_South
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+Dtheta
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-Dtheta
+     ENDDO
+
+# endif
+
+    TMP_NAME = TRIM(EVENT_FILE)
+
+! check existing
+
+ INQUIRE(FILE=TRIM(TMP_NAME),EXIST=FILE_EXIST)
+  IF(.NOT.FILE_EXIST)THEN
+# if defined (PARALLEL)
+   IF(MYID==0)  &
+   WRITE(*,*) TRIM(TMP_NAME), 'CANNOT BE FOUND. STOP'
+   CALL MPI_FINALIZE (ier)
+   STOP
+# else
+    WRITE(*,*) TRIM(TMP_NAME), 'CANNOT BE FOUND. STOP'
+    STOP
+# endif
+  ENDIF
+
+! open file
+  Ifile=300
+  OPEN(Ifile,FILE=TRIM(TMP_NAME))
+
+! read file
+         READ(Ifile,*)  ! title
+         READ(Ifile,*)  EventName  !  name
+         READ(Ifile,*)  ! t0,t1,x0,y0,speed,speed_t,pA_source,trough_pA_source
+         READ(Ifile,*)  TimeStorm1,TimeStorm2,Xstorm1,Ystorm1, &
+		                PSpC_storm1,PSpT_storm1,PAC_storm1,PAT_storm1
+! close file
+  CLOSE(Ifile)
+
+# if defined (PARALLEL)
+   IF(MYID==0)THEN
+   WRITE(3,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(3,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(3,*) 'Crest moving speed, Trough moving speed: ', &
+               PSpC_storm1,PSpT_storm1
+   WRITE(3,*) 'Crest dP*surface area, Trough dP*surface area: ', &
+               PAC_storm1,PAT_storm1
+   ENDIF
+# else
+   WRITE(*,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(*,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(*,*) 'Crest dP*surface area, Trough dP*surface area: ', &
+               PSpC_storm1,PSpT_storm1
+   WRITE(*,*) 'Crest dP, Trough dP: ', &
+               PAC_storm1,PAT_storm1
+   WRITE(3,*) 'Event Name: ',  TRIM(EventName)
+   WRITE(3,*) 'Initial Time, End Time, X, Y: ', &
+               TimeStorm1,TimeStorm2,Xstorm1,Ystorm1
+   WRITE(3,*) 'Crest dP*surface area, Trough dP*surface area: ', &
+               PSpC_storm1,PSpT_storm1
+   WRITE(3,*) 'Crest dP, Trough dP: ', &
+               PAC_storm1,PAT_storm1
+# endif
+
+END SUBROUTINE LPGaussian_Setup
+
+
+SUBROUTINE LPGaussian_Forcing
+  USE GLOBAL,ONLY : Mloc,Nloc,tmp1,tmp2,SMALL,TIME,ZERO
+  USE INPUT_READ
+  IMPLICIT NONE
+  INTEGER :: Ifile,ierr,I,J
+  REAL(SP) :: FDC_storm,FDT_storm ! front distance from center to crest and trough (m)
+  REAL(SP) :: WPC_storm,WPT_storm ! Wave period of crest and trough (s)
+  REAL(SP) :: WLC_storm,WLT_storm ! Wave length of crest and trough (m)
+  REAL(SP) :: SA_storm ! surface area of guassian ring (m^2)
+  REAL(SP) :: PC_storm,PT_storm ! max pressure jump at crest and trough
+  REAL(SP) :: Dist_storm ! distance to source center (rxy:m)
+  REAL(SP) :: LAC_storm,LAT_storm! Relative Gaussian polar coordinates from crest and trough
+  REAL(SP) :: PSpC_storm,PSpT_storm 
+
+    StormPressureTotal = ZERO
+
+    IF(TIME>TimeStorm1.AND.TIME<TimeStorm2) THEN
+	  PSpC_storm = PSpC_storm1*tanh((TIME-TimeStorm1+300.0_SP)/4000.0_SP)
+	  FDC_storm = (TIME-TimeStorm1)*PSpC_storm
+	  PSpT_storm = PSpT_storm1*tanh((TIME-TimeStorm1)/7000.0_SP)
+	  FDT_storm = (TIME-TimeStorm1)*PSpT_storm
+	  WPC_storm = 2300.0_SP*(TIME-TimeStorm1)**(-0.1)
+	  WPT_storm = 3300.0_SP*(TIME-TimeStorm1)**(-0.1)
+	  WLC_storm = PSpC_storm*WPC_storm
+	  WLT_storm = PSpT_storm*WPT_storm
+	  SA_storm = 2.0*pi*FDC_storm**0.5
+	  PC_storm = MAX(0.0,PAC_storm1/SA_storm*(tanh((FDC_storm)/300000.0_SP))**2.0)
+	  SA_storm = 2.0*pi*(FDC_storm+200000.0_SP)**0.91
+	  PT_storm = PAT_storm1/SA_storm
+      DO J=1,Nloc
+      DO I=1,Mloc
+# if defined (CARTESIAN)
+        Dist_storm = SQRT((Xco(I)-Xstorm1)**2 &
+	                     +(Yco(J)-Ystorm1)**2)
+# else
+        Dist_storm = 2.0_SP*R_earth*asin(SQRT(  sin( (Yco(J)-Ystorm1) &
+	                                                 *pi/360.0_SP)**2 &
+	                 + cos(Yco(J)*pi/180.0_SP)*cos(Ystorm1*pi/180.0_SP) &
+		  			  *sin( (Xco(I)-Xstorm1)*pi/360.0_SP )**2 ) )
+# endif
+        LAC_storm = (Dist_storm-FDC_storm)/(WLC_storm/1.5)
+		LAT_storm = (Dist_storm-FDT_storm)/(WLT_storm/1.5)
+		StormPressureTotal(I,J) = (PC_storm*EXP(-LAC_storm**2.0) &
+                           		 - PT_storm*EXP(-LAT_storm**2.0))/10000.0_SP
+      ENDDO
+      ENDDO
+	
+    ENDIF ! end time > timestorm2
+
+    DO J=Jbeg,Jend
+    DO I=Ibeg,Iend
+# if defined (CARTESIAN)
+       StormPressureX(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
+               /DX
+       StormPressureY(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
+               /DY
+# else
+       StormPressureX(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I+1,J)-StormPressureTotal(I-1,J))/2.0_SP  &
+               /DX(i,j)
+       StormPressureY(I,J) = -Grav*H(I,J)*  &
+               (StormPressureTotal(I,J+1)-StormPressureTotal(I,J-1))/2.0_SP  &
+               /DY(i,j)
+# endif
+    ENDDO
+    ENDDO
+
+END SUBROUTINE LPGaussian_Forcing
 
 END MODULE METEO_MODULE
 
