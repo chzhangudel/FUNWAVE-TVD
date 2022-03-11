@@ -1282,8 +1282,10 @@ END SUBROUTINE MeteoGausian_Forcing
 
 
 SUBROUTINE AxisymmetricGaussian_Setup
-  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
-                    Lon_West,Lat_South,Dphi,Dtheta
+  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME
+# ifndef CARTESIAN
+  USE GLOBAL,ONLY : Lon_West,Lat_South,Dphi,Dtheta
+# endif
 # if defined (PARALLEL)
   USE GLOBAL,ONLY : iista,jjsta   !ykchoi Jan/23/2018
 # endif
@@ -1524,8 +1526,10 @@ END SUBROUTINE AxisymmetricGaussian_Forcing
 
 
 SUBROUTINE LPGaussian_Setup
-  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
-                    Lon_West,Lat_South,Dphi,Dtheta
+  USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME
+# ifndef CARTESIAN
+  USE GLOBAL,ONLY : Lon_West,Lat_South,Dphi,Dtheta
+# endif
 # if defined (PARALLEL)
   USE GLOBAL,ONLY : iista,jjsta   !ykchoi Jan/23/2018
 # endif
