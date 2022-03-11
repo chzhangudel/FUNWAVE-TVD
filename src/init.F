@@ -871,7 +871,10 @@ SUBROUTINE INITIALIZATION
 # endif
      ENDIF
 
-
+! initial explosion serface elevation
+     IF(WaveMaker(1:7)=='INI_EXP') THEN
+       CALL INITIAL_EXPLOSION
+      ENDIF
 
 ! initial wave surface
      IF(WaveMaker(1:7)=='INI_OTH') THEN

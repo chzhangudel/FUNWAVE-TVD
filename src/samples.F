@@ -248,7 +248,7 @@ END SUBROUTINE INITIAL_RECTANGULAR
 !-------------------------------------------------------------------------------------
 !
 !    INITIAL_GAUSIAN is subroutine to provide initial gausian hump 
-!    it can be specified in input.txt giving 'INI_REC'
+!    it can be specified in input.txt giving 'INI_GAU'
 !
 !    HISTORY:
 !       10/11/2010 Fengyan Shi
@@ -332,7 +332,6 @@ SUBROUTINE INITIAL_GAUSIAN(M,N,Nghost,Dphi,Dtheta,Lon_West,Lat_South, &
 # endif
  
 END SUBROUTINE INITIAL_GAUSIAN
-
 
 !-------------------------------------------------------------------------------------
 !
@@ -425,6 +424,162 @@ SUBROUTINE INITIAL_DIPOLE(M,N,Nghost,Dphi,Dtheta,Lon_West,Lat_South, &
 # endif
  
 END SUBROUTINE INITIAL_DIPOLE
+
+
+!-------------------------------------------------------------------------------------
+!
+!    INITIAL_EXPLOSION is subroutine to provide initial explosion serface elevation 
+!    it can be specified in input.txt giving 'INI_EXP'
+!
+!    HISTORY:
+!       03/08/2022 Cheng Zhang
+!
+!-------------------------------------------------------------------------------------
+SUBROUTINE INITIAL_EXPLOSION
+     USE PARAM
+     USE GLOBAL
+     IMPLICIT NONE
+     REAL(SP) :: r,xx
+     REAL(SP) :: DEP_EXP,D_EXP,R_EXP,ETA_EXP,A_EXP,B_EXP
+# if defined (PARALLEL)
+     INTEGER :: irank, ireq
+     INTEGER :: istatus(mpi_status_size)
+     REAL(SP) :: myvar_tmp
+# endif
+
+     
+     Eta = ZERO
+      
+     ! Xco, and Yco
+     
+# if defined (CARTESIAN)
+     ! Cartesian
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*DX
+# else
+     Xco(Ibeg) = ZERO
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+DX
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-DX
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*DY
+# else
+     Yco(Jbeg) = ZERO
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+DY
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-DY
+     ENDDO
+     
+# else
+! Spherical
+# if defined (PARALLEL)
+     Xco(Ibeg) = (iista-1)*Dphi + Lon_West
+# else
+     Xco(Ibeg) = Lon_West
+# endif
+     DO I = Ibeg+1,Mloc
+       Xco(I) = Xco(I-1)+Dphi
+     ENDDO
+     DO I = Ibeg-1,Ibeg-Nghost,-1
+       Xco(I) = Xco(I+1)-Dphi
+     ENDDO
+
+# if defined (PARALLEL)
+     Yco(Jbeg) = (jjsta-1)*Dtheta + Lat_South
+# else
+     Yco(Jbeg) = Lat_South
+# endif
+     DO J = Jbeg+1,Nloc
+       Yco(J) = Yco(J-1)+Dtheta
+     ENDDO
+     DO J = Jbeg-1,Jbeg-Nghost,-1
+       Yco(J) = Yco(J+1)-Dtheta
+     ENDDO
+
+# endif
+
+     ! Find the depth at (Xc,Yc)
+     xx = ZERO
+     DO J=2,Nloc
+     DO I=2,Mloc
+       IF (Xco(I)>Xc.and.Xco(I-1)<=Xc &
+          .and.Yco(J)>Yc.and.Yco(J-1)<=Yc) THEN
+         xx = Depth(I,J)
+         write(*,*) 'xx is:', xx,';  myid:',myid
+       ENDIF
+     ENDDO
+     ENDDO
+# if defined (PARALLEL)
+     CALL MPI_ALLREDUCE(xx,myvar_tmp,1,MPI_SP,MPI_MAX,MPI_COMM_WORLD,ier)
+     xx = myvar_tmp
+     do irank=1, px*py-1
+     if( myid == 0 ) then
+        call mpi_isend( xx, 1, mpi_sp, irank, 1, mpi_comm_world, ireq, ier )
+        call mpi_wait( ireq, istatus, ier )
+        DEP_EXP = xx
+     elseif( myid == irank ) then
+        call mpi_irecv( DEP_EXP, 1, mpi_sp, 0, 1, mpi_comm_world, ireq, ier )
+        call mpi_wait( ireq, istatus, ier )
+     endif
+     enddo
+# else
+     DEP_EXP = xx
+# endif
+     write(*,*) 'Depth is:', DEP_EXP,';  myid:',myid
+
+     D_EXP = 406.2*DEP_EXP/NRG**(1./3.)
+     IF (D_EXP<=1) THEN
+       ETA_EXP = DEP_EXP
+       R_EXP = 0.03608*NRG**(0.25)
+     ELSE
+       IF (Zc/NRG**(0.3)<=9.965e-4) THEN
+          A_EXP = 0.02913
+          B_EXP = 0.03803
+       ELSEIF (Zc/NRG**(0.3)>9.965e-4.and.Zc/NRG**(0.3)<=0.029895) THEN
+          A_EXP = 0.01433
+          B_EXP = 0.04293
+       ELSE
+          A_EXP = 0.0
+          B_EXP = 0.0
+       ENDIF
+       ETA_EXP = MIN(DEP_EXP, A_EXP*NRG**(0.24))
+       R_EXP = B_EXP*NRG**(0.3)
+     ENDIF
+     write(*,*) 'ETA_EXP is:', ETA_EXP,';  R_EXP is:',R_EXP,';  D_EXP is:',D_EXP
+
+# if defined (CARTESIAN)
+     DO J=1,Nloc
+     DO I=1,Mloc
+       r=SQRT((Xco(I)-Xc)**2+(Yco(J)-Yc)**2)
+       IF (r<=R_EXP*sqrt(3.)) THEN
+          Eta(I,J) = ETA_EXP*(-1./3.*(r/R_EXP)**4.+4./3.*(r/R_EXP)**2.-1.0)
+       ENDIF
+     ENDDO
+     ENDDO
+# else
+     DO J=1,Nloc
+     DO I=1,Mloc
+      !r=SQRT((Xco(I)-Xc)**2+(Yco(J)-Yc)**2)
+      r = 2.0_SP*R_earth*asin(SQRT(  sin( (Yco(J)-Yc) &
+                                     *pi/360.0_SP)**2 &
+          + cos(Yco(J)*pi/180.0_SP)*cos(Yc*pi/180.0_SP) &
+           *sin( (Xco(I)-Xc)*pi/360.0_SP )**2 ) )
+      IF (r<=R_EXP*sqrt(3.)) THEN
+        Eta(I,J) = ETA_EXP*(-1./3.*(r/R_EXP)**4.+4./3.*(r/R_EXP)**2.-1.0)
+      ENDIF
+     ENDDO
+     ENDDO
+# endif
+ 
+END SUBROUTINE INITIAL_EXPLOSION
 
 
 !-------------------------------------------------------------------------------------

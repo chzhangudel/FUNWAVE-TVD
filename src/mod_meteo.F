@@ -1523,15 +1523,6 @@ SUBROUTINE AxisymmetricGaussian_Forcing
 END SUBROUTINE AxisymmetricGaussian_Forcing
 
 
-
-
-
-
-
-
-
-
-
 SUBROUTINE LPGaussian_Setup
   USE GLOBAL,ONLY : itmp1,itmp2,itmp3,itmp4,SMALL,LARGE,INPUT_FILE_NAME,&
                     Lon_West,Lat_South,Dphi,Dtheta

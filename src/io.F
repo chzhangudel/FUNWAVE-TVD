@@ -1412,6 +1412,81 @@ SUBROUTINE READ_INPUT
 # endif
         ENDIF ! endif gaussian hump
 
+        IF(WaveMaker(1:7)=='INI_EXP')THEN
+
+          CALL READ_FLOAT(NRG,FILE_NAME,'NRG',ierr)
+      IF(ierr==1)THEN
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A50)')'NRG NOT FOUND, specify NRG in input.txt'
+         WRITE(3,'(A50)')'NRG NOT FOUND, specify NRG in input.txt'
+      endif
+       call MPI_FINALIZE ( ier )
+# else
+         WRITE(*,'(A50)')'NRG NOT FOUND, specify NRG in input.txt'
+         WRITE(3,'(A50)')'NRG NOT FOUND, specify NRG in input.txt'
+# endif
+        STOP
+      ENDIF
+
+          CALL READ_FLOAT(Xc,FILE_NAME,'Xc',ierr)
+      IF(ierr==1)THEN
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A50)')'Xc NOT FOUND, specify Xc in input.txt'
+         WRITE(3,'(A50)')'Xc NOT FOUND, specify Xc in input.txt'
+      endif
+       call MPI_FINALIZE ( ier )
+# else
+         WRITE(*,'(A50)')'Xc NOT FOUND, specify Xc in input.txt'
+         WRITE(3,'(A50)')'Xc NOT FOUND, specify Xc in input.txt'
+# endif
+        STOP
+      ENDIF
+
+          CALL READ_FLOAT(Yc,FILE_NAME,'Yc',ierr)
+      IF(ierr==1)THEN
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A50)')'Yc NOT FOUND, specify Yc in input.txt'
+         WRITE(3,'(A50)')'Yc NOT FOUND, specify Yc in input.txt'
+      endif
+       call MPI_FINALIZE ( ier )
+# else
+         WRITE(*,'(A50)')'Yc NOT FOUND, specify Yc in input.txt'
+         WRITE(3,'(A50)')'Yc NOT FOUND, specify Yc in input.txt'
+# endif
+        STOP
+      ENDIF
+
+      CALL READ_FLOAT(Zc,FILE_NAME,'Zc',ierr)
+      IF(ierr==1)THEN
+# if defined (PARALLEL)
+      if (myid.eq.0) THEN
+         WRITE(*,'(A50)')'Zc NOT FOUND, specify Zc in input.txt'
+         WRITE(3,'(A50)')'Zc NOT FOUND, specify Zc in input.txt'
+      endif
+       call MPI_FINALIZE ( ier )
+# else
+         WRITE(*,'(A50)')'Zc NOT FOUND, specify Zc in input.txt'
+         WRITE(3,'(A50)')'Zc NOT FOUND, specify Zc in input.txt'
+# endif
+        STOP
+      ENDIF
+
+# if defined (PARALLEL)
+      if (myid.eq.0) WRITE(3,'(A10,F12.2)')'NRG     =', NRG
+      if (myid.eq.0) WRITE(3,'(A10,F12.2)')'Xc      =', Xc
+      if (myid.eq.0) WRITE(3,'(A10,F12.2)')'Yc      =', Yc
+      if (myid.eq.0) WRITE(3,'(A10,F12.2)')'Zc      =', Zc
+# else
+      WRITE(3,'(A10,F12.2)')'NRG     =', NRG
+      WRITE(3,'(A10,F12.2)')'Xc      =', Xc
+      WRITE(3,'(A10,F12.2)')'Yc      =', Yc
+      WRITE(3,'(A10,F12.2)')'Zc      =', Zc
+# endif
+        ENDIF ! endif explosion sruface elevation
+
         IF(WaveMaker(1:6)=='WK_REG')THEN
           CALL READ_FLOAT(Xc_WK,FILE_NAME,'Xc_WK',ierr)
       IF(ierr==1)THEN
